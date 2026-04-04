@@ -105,22 +105,11 @@ def predict_xg(shot_row: pd.Series) -> float:
     """
     pipeline = load_model_pipeline()
     shot_df = pd.DataFrame([shot_row])
-    try:
-        if hasattr(pipeline, "predict_proba"):
-            return float(pipeline.predict_proba(shot_df)[0, 1])
-        return float(pipeline.predict(shot_df)[0])
-    except Exception as exc:  # pragma: no cover - best effort prediction
-        st.error(f"Couldn't score shot with saved pipeline: {exc}")
-        loc = shot_row.get("location", [60, 40])
-        x, y = loc[0], loc[1]
-        dist = np.sqrt((120 - x) ** 2 + (40 - y) ** 2)
-        angle = np.arctan2(
-            7.32 * (120 - x),
-            (120 - x) ** 2 + (40 - y) ** 2 - (7.32 / 2) ** 2,
-        )
-        angle = max(angle, 0)
-        return float(np.clip(0.05 + (1 / (dist + 1)) * 5 + angle * 0.3, 0.01, 0.99))
-
+    
+    if hasattr(pipeline, "predict_proba"):
+        return float(pipeline.predict_proba(shot_df)[0, 1])
+    
+    return float(pipeline.predict(shot_df)[0])
 
 def draw_pitch_with_shot(location, outcome_label):
     """Desenha o campo com a posição do chute marcada."""
