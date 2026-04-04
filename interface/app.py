@@ -4,13 +4,31 @@ Coloque este arquivo dentro da pasta `interface/`
 Execute com: streamlit run xg_dashboard.py
 """
 
+import sys
+
+import joblib
 import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from mplsoccer import VerticalPitch
+from pathlib import Path
 from statsbombpy import sb
+import catboost
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
+SRC_DIR = ROOT_DIR / "src"
+MODEL_PATH = ROOT_DIR / "models/xg_pipeline_final.pkl"
+
+if str(SRC_DIR) not in sys.path:
+    sys.path.append(str(SRC_DIR))
+
+
+@st.cache_resource(show_spinner=False)
+def load_model_pipeline():
+    """Load the saved pipeline that includes preprocessing + xG model."""
+    return joblib.load(MODEL_PATH)
 
 # ─── Configuração da página ───────────────────────────────────────────────────
 st.set_page_config(
@@ -85,19 +103,23 @@ def predict_xg(shot_row: pd.Series) -> float:
     Por enquanto retorna um placeholder baseado
     na localização do chute (lógica simples).
     """
+    pipeline = load_model_pipeline()
+    shot_df = pd.DataFrame([shot_row])
     try:
+        if hasattr(pipeline, "predict_proba"):
+            return float(pipeline.predict_proba(shot_df)[0, 1])
+        return float(pipeline.predict(shot_df)[0])
+    except Exception as exc:  # pragma: no cover - best effort prediction
+        st.error(f"Couldn't score shot with saved pipeline: {exc}")
         loc = shot_row.get("location", [60, 40])
         x, y = loc[0], loc[1]
-        # Distância ao gol (statsbomb: gol em x=120, y=40)
         dist = np.sqrt((120 - x) ** 2 + (40 - y) ** 2)
-        # Ângulo ao gol
-        angle = np.arctan2(7.32 * (120 - x), (120 - x) ** 2 + (40 - y) ** 2 - (7.32 / 2) ** 2)
+        angle = np.arctan2(
+            7.32 * (120 - x),
+            (120 - x) ** 2 + (40 - y) ** 2 - (7.32 / 2) ** 2,
+        )
         angle = max(angle, 0)
-        # Placeholder: quanto mais perto e maior ângulo, maior xG
-        xg = np.clip(0.05 + (1 / (dist + 1)) * 5 + angle * 0.3, 0.01, 0.99)
-        return round(float(xg), 4)
-    except Exception:
-        return 0.05
+        return float(np.clip(0.05 + (1 / (dist + 1)) * 5 + angle * 0.3, 0.01, 0.99))
 
 
 def draw_pitch_with_shot(location, outcome_label):
