@@ -11,8 +11,7 @@ class xGPreprocessor(BaseEstimator, TransformerMixin):
     def __init__(self):
         # Definimos aqui as colunas que queremos manter ao final
         self.final_features = [
-            'play_pattern', 
-            'possession', 
+            'play_pattern',  
             'shot_aerial_won', 
             'shot_body_part',
             'shot_first_time',

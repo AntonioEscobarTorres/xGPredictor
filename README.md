@@ -1,47 +1,57 @@
-# xG Predictor (end-to-end exercise)
+# xG Predictor – Study Project
 
-This repository hosts an end-to-end data science exercise where I built a complete expected goals (xG) solution using real match data. The goal was to simulate a full pipeline—from data ingestion to inference—so I could practice a realistic project.
+This repository captures a study project that walks through a full expected-goals (xG) workflow: data ingestion, feature engineering, modeling, and an interactive interface that compares the trained pipeline to StatsBomb’s published xG values. It was originally built as a hands-on exercise to practice real-world data science engineering and modeling skills.
 
-## Overview
-- **Goal:** estimate the probability that a shot becomes a goal by combining spatial context, player posture, and blocker presence from real-event data.
-- **End-to-end scope:** ingestion (`src/data_loader.ipynb` / StatsBomb data), preprocessing (`src/pre_processing.py` + `src/utils.py`), training/evaluation (`src/trainingModel.ipynb`), and inference/pipeline (`models/xg_pipeline_final.pkl`).
-- **Motivation:** sharpen data science craft through a connected workflow that touches data engineering, derived features, and the final model in one project.
+## Getting started
+1. **Clone & enter the repo**
+   ```bash
+   git clone <repo-url>
+   cd xgPredictor
+   ```
+2. **Create a Python environment**
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate  # macOS/Linux
+   .venv\\Scripts\\activate     # Windows
+   ```
+3. **Install the dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-## Project structure
+## Project layout
+
 ```
 xgPredictor/
-├── data/bronze/csv/statsbomb_shots_final.csv   # tabular inputs used in the notebooks (pre-downloaded StatsBomb shots)
-├── models/xg_pipeline_final.pkl                # serialized pipeline for inference
-└── src/
-    ├── data_loader.ipynb                       # exploration and loading of the original data
-    ├── pre_processing.py                       # `xGPreprocessor` class and feature engineering logic
-    ├── utils.py                                # geometric helpers (normalization, distance, blockers, etc.)
-    ├── trainingModel.ipynb                     # training/evaluation notebook
-    └── testingWithWorldcupData.ipynb           # supplementary testing with specific datasets
+├── data/bronze/csv/statsbomb_shots_final.csv   # StatsBomb shot events snapshot
+├── data/bronze/shotsByMatches/                 # match‑level snapshots used during exploration
+├── models/xg_pipeline_final.pkl                # saved pipeline (preprocessing + CatBoost model)
+├── src/                                        # preprocessing/helpers/training notebooks
+├── interface/app.py                            # Streamlit dashboard
+└── requirements.txt                            # pinned dependencies
 ```
 
-## End-to-end flow
-1. **Raw data:** the CSV in `data/bronze/csv` collects StatsBomb shot events and acts as the base dataset.
-2. **Geometry normalization:** `src/utils.normalize_direction` ensures every shot faces the same goal so distances and angles are aligned.
-3. **Derived features:** `xGPreprocessor.transform` adds indicators such as `is_inside_box`, `distance_to_goal`, `shot_angle`, `foot_alignment`, and `n_adversarios_frente` (based on `shot_freeze_frame`).
-4. **Training:** the notebooks document CatBoost/XGBoost experiments and the final pipeline saved at `models/xg_pipeline_final.pkl`, compatible with the transformer and model steps.
-5. **Inference:** the serialized pipeline applies preprocessing and returns goal probabilities for new shots.
+## Running the notebooks
+- `src/data_loader.ipynb`: explore and/or reload StatsBomb open-data shot events (requires internet and statsbombpy credentials if private data is needed).
+- `src/pre_processing.py` & `src/utils.py`: contain the `xGPreprocessor` and helper functions for geometry normalization, blocker counting, and feature derivation.
+- `src/trainingModel.ipynb`: training experiments with CatBoost/XGBoost and saving the final pipeline (`models/xg_pipeline_final.pkl`).
+- `src/testingWithWorldcupData.ipynb`: additional testing with curated datasets.
 
-## Reproducing the project
-1. Set up the environment and install dependencies: `pip install -r requirements.txt`.
-2. Run `src/data_loader.ipynb` to reprocess or download StatsBomb data (it uses `statsbombpy`).
-3. Execute `src/trainingModel.ipynb` to retrain or explore variations. The notebooks document metrics and visualizations.
-4. Validate the serialized pipeline with sample data via `src/testingWithWorldcupData.ipynb`.
+## Launching the Streamlit dashboard
+1. Ensure the virtual environment (with dependencies) is active.
+2. Run:
+   ```bash
+   streamlit run interface/app.py
+   ```
+3. Use the sidebar to select a StatsBomb competition + match (falls back to the local CSV snapshot when the API is unavailable) and compare:
+   - **Model xG:** the probability produced by the saved pipeline (`models/xg_pipeline_final.pkl`).
+   - **StatsBomb xG:** the published value embedded in the dataset.
+4. The interface also shows shot metadata, location, freeze-frame blockers, and a mini visualization.
 
-## Suggested next steps
-1. Automate loading new CSV files into `data/bronze` and version the datasets with checkpoints.
-2. Build an interface (Streamlit or FastAPI) that serves predictions from `models/xg_pipeline_final.pkl` in real time.
-3. Add explainability (SHAP) to highlight which features drive the xG prediction per shot context.
+## Notes for future work
+- The fully serialized pipeline already bundles preprocessing + model, so scoring a shot only requires the single file under `models/`.
+- If you extend the project, try adding explainability (SHAP) or packaging the dashboard into a Streamlit app with hosting.
+- Keep the data snapshots documented if you refresh them (CSV in `data/bronze/csv` and/or the match pickles).
 
-## Key dependencies
-- `numpy`, `pandas`, `scikit-learn` (preprocessing and metrics)
-- `xgboost`, `catboost` (gradient boosting models)
-- `statsbombpy` (StatsBomb API connector)
-- `shap`, `tqdm` (visualization and progress tracking)
-
-This README captures the intent and outputs of this practical data science exercise, framed as an end-to-end project. Use it as a guide to reproduce, expand, or operationalize the xG pipeline.
+## Why it’s a study project
+This repo was crafted as a personal study project to practice end-to-end data science: from cleaning StatsBomb shots to fitting a gradient boosting model, then comparing it to industry-standard xG. It is not production software, but a living notebook-style exploration that connects engineering, modeling, and visualization in one place.
