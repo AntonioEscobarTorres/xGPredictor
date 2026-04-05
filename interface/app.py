@@ -1,8 +1,4 @@
-"""
-xG Dashboard - Comparação entre modelo próprio e StatsBomb
-Coloque este arquivo dentro da pasta `interface/`
-Execute com: streamlit run xg_dashboard.py
-"""
+
 
 import sys
 import joblib
@@ -97,18 +93,7 @@ def predict_xg(shot_row: pd.Series) -> float:
 
 @st.cache_data(show_spinner=False)
 def compute_shap_explanation(_pipeline, shot_row_dict: dict):
-    """
-    Calcula SHAP values locais para um único chute.
 
-    Por que passamos numpy e não DataFrame?
-    - CatBoost salvo via sklearn pipeline às vezes reporta n_features_in_=0
-      quando acessado fora do pipeline (quirk de serialização do joblib).
-    - Passando array numpy puro o TreeExplainer bypassa essa checagem.
-
-    Por que shap_values() e não explainer()?
-    - explainer() usa a API nova do SHAP que tenta inspecionar n_features_in_
-      e falha com o bug acima. shap_values() usa a API legada, mais robusta.
-    """
     shot_df = pd.DataFrame([shot_row_dict])
     X_transformed = transform_shot(_pipeline, shot_df)
     feature_names = list(X_transformed.columns)
@@ -132,13 +117,7 @@ def compute_shap_explanation(_pipeline, shot_row_dict: dict):
 
     # ── Conversão log-odds → probabilidade ───────────────────────────────
     # SHAP aditivo em logit: base_logit + Σshap_i = f(x)_logit
-    # Queremos converter para probabilidade mantendo aditividade:
-    #   p_base  = sigmoid(base_logit)
-    #   p_final = sigmoid(f(x)_logit)
-    #   Cada shap_i_prob = shap_i_logit × (p_final - p_base) / Σshap_i_logit
-    #
-    # IMPORTANTE: o denominador é Σshap_i (com sinal), não Σ|shap_i|.
-    # Isso preserva sinais e garante p_base + Σshap_i_prob == p_final exatamente.
+
     def sigmoid(x):
         return 1.0 / (1.0 + np.exp(-x))
 
@@ -172,8 +151,7 @@ def build_shap_waterfall(pipeline, shot_row: pd.Series):
         explanation = compute_shap_explanation(pipeline, shot_row.to_dict())
 
         # Fecha todas as figuras matplotlib abertas antes de chamar o waterfall.
-        # Sem isso, plt.gcf() pode retornar fig_pitch ou fig_bar criadas antes,
-        # e o st.pyplot acaba renderizando as figuras antigas junto com o SHAP.
+        
         plt.close("all")
 
         shap.plots.waterfall(explanation, max_display=12, show=False)
@@ -240,7 +218,7 @@ def build_xg_bar_chart(model_xg: float, sb_xg: float):
     fig.patch.set_facecolor("#1e1e2e")
     ax.set_facecolor("#1e1e2e")
 
-    bars = ax.barh(["Meu Modelo", "StatsBomb"], [model_xg, sb_xg],
+    bars = ax.barh(["My Model", "StatsBomb"], [model_xg, sb_xg],
                    color=["#89b4fa", "#a6e3a1"], height=0.4, edgecolor="#313244")
     ax.set_xlim(0, 1)
     ax.set_xlabel("xG", color="#cdd6f4", fontsize=10)
@@ -251,7 +229,7 @@ def build_xg_bar_chart(model_xg: float, sb_xg: float):
         ax.text(val + 0.01, bar.get_y() + bar.get_height() / 2,
                 f"{val:.4f}", va="center", ha="left",
                 color="#cdd6f4", fontsize=11, fontweight="bold")
-    ax.set_title("Comparação de xG", color="#cdd6f4", fontsize=12, pad=10)
+    ax.set_title("xG comparison", color="#cdd6f4", fontsize=12, pad=10)
     plt.tight_layout()
     return fig
 
@@ -259,45 +237,45 @@ def build_xg_bar_chart(model_xg: float, sb_xg: float):
 # ─── Layout principal ─────────────────────────────────────────────────────────
 
 st.title("⚽ xG Dashboard")
-st.caption("Compare o xG do seu modelo com os dados do StatsBomb")
+st.caption("Compare your model's xG with StatsBomb's published values")
 st.divider()
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.header("🔎 Filtros")
+    st.header("🔎 Filters")
 
-    with st.spinner("Carregando competições..."):
+    with st.spinner("Loading competitions..."):
         competitions = load_competitions()
 
     comp_options = (competitions[["competition_name", "competition_id"]]
                     .drop_duplicates().sort_values("competition_name"))
-    competition_name = st.selectbox("Competição", comp_options["competition_name"].tolist())
+    competition_name = st.selectbox("Competition", comp_options["competition_name"].tolist())
     competition_id = int(comp_options.loc[
         comp_options["competition_name"] == competition_name, "competition_id"].iloc[0])
 
     seasons = (competitions[competitions["competition_id"] == competition_id]
                [["season_name", "season_id"]].drop_duplicates()
                .sort_values("season_name", ascending=False))
-    season_name = st.selectbox("Temporada", seasons["season_name"].tolist())
+    season_name = st.selectbox("Season", seasons["season_name"].tolist())
     season_id = int(seasons.loc[seasons["season_name"] == season_name, "season_id"].iloc[0])
 
-    with st.spinner("Carregando partidas..."):
+    with st.spinner("Loading matches..."):
         matches = load_matches(competition_id, season_id)
 
     matches["label"] = (matches["home_team"] + " vs " + matches["away_team"]
                         + "  (" + matches["match_date"].astype(str) + ")")
-    match_label = st.selectbox("Partida", matches["label"].tolist())
+    match_label = st.selectbox("Match", matches["label"].tolist())
     match_id = int(matches.loc[matches["label"] == match_label, "match_id"].iloc[0])
 
     st.divider()
-    st.caption("Dados fornecidos por StatsBomb Open Data")
+    st.caption("Data provided by StatsBomb Open Data")
 
-# ── Finalizações ──────────────────────────────────────────────────────────────
-with st.spinner("Carregando finalizações..."):
+# ── Shots ─────────────────────────────────────────────────────────────────────────
+with st.spinner("Loading shots..."):
     shots = load_shots(match_id)
 
 if shots.empty:
-    st.warning("Nenhuma finalização encontrada nesta partida.")
+    st.warning("No shots found for this match.")
     st.stop()
 
 shots["shot_label"] = (
@@ -308,8 +286,8 @@ shots["shot_label"] = (
     + "  (" + shots["minute"].astype(str) + "')"
 )
 
-st.subheader("🎯 Selecione uma finalização")
-shot_label = st.selectbox("Finalização", shots["shot_label"].tolist(), label_visibility="collapsed")
+st.subheader("🎯 Select a shot")
+shot_label = st.selectbox("Shot", shots["shot_label"].tolist(), label_visibility="collapsed")
 selected = shots[shots["shot_label"] == shot_label].iloc[0]
 
 # ── xG ────────────────────────────────────────────────────────────────────────
@@ -325,7 +303,7 @@ st.divider()
 col1, col2, col3 = st.columns(3)
 with col1:
     st.markdown(f"""<div class="metric-card">
-        <div class="metric-label">⚙️ Meu Modelo</div>
+        <div class="metric-label">⚙️ My Model</div>
         <div class="metric-value model">{model_xg:.4f}</div>
     </div>""", unsafe_allow_html=True)
 with col2:
@@ -337,7 +315,7 @@ with col2:
 with col3:
     diff_display = f"{diff:+.4f}" if diff is not None else "N/A"
     st.markdown(f"""<div class="metric-card">
-        <div class="metric-label">Δ Diferença</div>
+        <div class="metric-label">Δ Difference</div>
         <div class="metric-value diff">{diff_display}</div>
     </div>""", unsafe_allow_html=True)
 
@@ -347,7 +325,7 @@ st.divider()
 col_pitch, col_bar = st.columns([1, 1])
 
 with col_pitch:
-    st.markdown('<div class="section-title">📍 Localização do chute</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">📍 Shot location</div>', unsafe_allow_html=True)
     outcome_raw = selected.get("shot_outcome", "?")
     outcome = outcome_raw if isinstance(outcome_raw, str) else (
         outcome_raw.get("name", "?") if isinstance(outcome_raw, dict) else "?")
@@ -357,32 +335,32 @@ with col_pitch:
 
 with col_bar:
     if sb_xg is not None:
-        st.markdown('<div class="section-title">📊 Comparação de xG</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">📊 xG comparison</div>', unsafe_allow_html=True)
         fig_bar = build_xg_bar_chart(model_xg, sb_xg)
         st.pyplot(fig_bar, width="stretch")
         plt.close(fig_bar)
     else:
-        st.info("StatsBomb não disponibilizou xG para esta finalização.")
+        st.info("StatsBomb did not provide an xG value for this shot.")
 
 st.divider()
 
 # ── Linha 2: SHAP waterfall ───────────────────────────────────────────────────
-st.markdown('<div class="section-title">🧠 Por que meu modelo deu esse xG?</div>',
+st.markdown('<div class="section-title">🧠 Why did my model output this xG?</div>',
             unsafe_allow_html=True)
 st.caption(
-    "Cada barra mostra o quanto aquela feature **empurrou** o xG para cima 🔴 "
-    "ou para baixo 🔵 em relação ao valor base médio do modelo. "
-    "A soma de todas as contribuições resulta no xG final."
+    "Each bar shows how much that feature **pushed** the xG up 🔴 "
+    "or down 🔵 relative to the average base value. "
+    "The sum of all contributions equals the final xG."
 )
 
-with st.spinner("Calculando explicação SHAP..."):
+with st.spinner("Computing SHAP explanation..."):
     fig_shap, shap_error = build_shap_waterfall(pipeline, selected)
 
 if shap_error:
-    st.error(f"Não foi possível gerar explicação SHAP: `{shap_error}`")
+    st.error(f"Unable to compute SHAP explanation: `{shap_error}`")
     st.info(
-        "Causas comuns: `xGPreprocessor` não importado corretamente, "
-        "ou versão do sklearn incompatível com o pipeline salvo."
+        "Common causes: `xGPreprocessor` not imported correctly "
+        "or an incompatible sklearn version compared to the saved pipeline."
     )
 else:
     st.pyplot(fig_shap, width="stretch")
@@ -408,7 +386,6 @@ with st.expander("📖 Feature Glossary — what each variable means"):
     | `shot_type_*` | Type of shot attempt: Open Play, Free Kick, Corner, or Penalty. |
     | `shot_technique_*` | Technique used: Normal, Volley, Half Volley, Header, Lob, Backheel, Overhead Kick, etc. |
     | `shot_body_part_*` | Which body part was used: Right Foot, Left Foot, Head, or Other. |
-    | `possession` | StatsBomb possession sequence ID — distinguishes between different attacks within the same match. |
     | `under_pressure` | Whether the shooter was being actively pressured by a defender at the moment of the shot (1 = yes). |
     | `n_adversarios_frente` | Number of opposing outfield players positioned between the ball and the goal at the moment of the shot. More defenders = lower xG. |
 
@@ -429,7 +406,7 @@ with st.expander("📖 Feature Glossary — what each variable means"):
 
 # ── Detalhes brutos ───────────────────────────────────────────────────────────
 st.divider()
-with st.expander("🔍 Detalhes completos da finalização"):
+with st.expander("🔍 Full shot details"):
     detail_fields = [
         "player", "team", "minute", "second", "location",
         "shot_outcome", "shot_technique", "shot_body_part",
