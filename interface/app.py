@@ -237,7 +237,7 @@ def build_xg_bar_chart(model_xg: float, sb_xg: float):
 # ─── Layout principal ─────────────────────────────────────────────────────────
 
 st.title("⚽ xG Dashboard")
-st.caption("Compare your model's xG with StatsBomb's published values")
+st.caption("Evaluate the performance of this custom xG model against StatsBomb’s industry-standard data. Use the SHAP visualization below to understand the specific factors influencing every prediction.")
 st.divider()
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
@@ -269,6 +269,10 @@ with st.sidebar:
 
     st.divider()
     st.caption("Data provided by StatsBomb Open Data")
+    st.markdown("""
+        **Developed by Antônio Torres**  
+        [LinkedIn](https://www.linkedin.com/in/antonioescobartorres/) | [GitHub](https://github.com/AntonioEscobarTorres)
+    """)
 
 # ── Shots ─────────────────────────────────────────────────────────────────────────
 with st.spinner("Loading shots..."):
