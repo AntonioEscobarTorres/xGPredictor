@@ -7,3 +7,4 @@ scikit_learn==1.8.0
 shap==0.51.0
 statsbombpy==1.17.0
 streamlit==1.56.0
+catboost==1.2.10
