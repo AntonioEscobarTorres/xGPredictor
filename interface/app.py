@@ -242,38 +242,63 @@ st.divider()
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.header("🔎 Filters")
-
-    with st.spinner("Loading competitions..."):
+    st.header("🔎 Filtros")
+ 
+    with st.spinner("Carregando competições..."):
         competitions = load_competitions()
-
+ 
     comp_options = (competitions[["competition_name", "competition_id"]]
                     .drop_duplicates().sort_values("competition_name"))
-    competition_name = st.selectbox("Competition", comp_options["competition_name"].tolist())
+ 
+    # Default: FIFA World Cup
+    DEFAULT_COMPETITION = "FIFA World Cup"
+    default_comp_idx = (
+        comp_options["competition_name"].tolist().index(DEFAULT_COMPETITION)
+        if DEFAULT_COMPETITION in comp_options["competition_name"].tolist()
+        else 0
+    )
+    competition_name = st.selectbox("Competition", comp_options["competition_name"].tolist(),
+                                    index=default_comp_idx)
     competition_id = int(comp_options.loc[
         comp_options["competition_name"] == competition_name, "competition_id"].iloc[0])
-
+ 
     seasons = (competitions[competitions["competition_id"] == competition_id]
                [["season_name", "season_id"]].drop_duplicates()
                .sort_values("season_name", ascending=False))
-    season_name = st.selectbox("Season", seasons["season_name"].tolist())
+ 
+    # Default: 2022 season
+    DEFAULT_SEASON = "2022"
+    season_list = seasons["season_name"].tolist()
+    default_season_idx = (
+        season_list.index(DEFAULT_SEASON)
+        if DEFAULT_SEASON in season_list
+        else 0
+    )
+    season_name = st.selectbox("Season", season_list, index=default_season_idx)
     season_id = int(seasons.loc[seasons["season_name"] == season_name, "season_id"].iloc[0])
-
+ 
     with st.spinner("Loading matches..."):
         matches = load_matches(competition_id, season_id)
-
+ 
     matches["label"] = (matches["home_team"] + " vs " + matches["away_team"]
                         + "  (" + matches["match_date"].astype(str) + ")")
-    match_label = st.selectbox("Match", matches["label"].tolist())
+ 
+    # Default: World Cup Final — Argentina vs France (18/12/2022)
+    DEFAULT_MATCH = "Argentina vs France"
+    match_list = matches["label"].tolist()
+    default_match_idx = next(
+        (i for i, m in enumerate(match_list) if "Argentina" in m and "France" in m),
+        0
+    )
+    match_label = st.selectbox("Match", match_list, index=default_match_idx)
     match_id = int(matches.loc[matches["label"] == match_label, "match_id"].iloc[0])
-
+ 
     st.divider()
     st.caption("Data provided by StatsBomb Open Data")
     st.markdown("""
         **Developed by Antônio Torres**  
         [LinkedIn](https://www.linkedin.com/in/antonioescobartorres/) | [GitHub](https://github.com/AntonioEscobarTorres)
     """)
-
 # ── Shots ─────────────────────────────────────────────────────────────────────────
 with st.spinner("Loading shots..."):
     shots = load_shots(match_id)
