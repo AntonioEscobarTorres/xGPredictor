@@ -27,7 +27,7 @@ class xGPreprocessor(BaseEstimator, TransformerMixin):
             'foot_alignment', 
             'distance_to_goal',
            'shot_angle',
-           'n_adversarios_frente'
+           'defenders_between_ball_and_goal'
                     ]
         
 
@@ -65,7 +65,7 @@ class xGPreprocessor(BaseEstimator, TransformerMixin):
         df["foot_alignment"] = df.apply(check_inverted, axis=1)
         df["distance_to_goal"] = df.apply(distance_to_goal, axis=1)
         df["shot_angle"] = df.apply(shot_angle, axis=1)
-        df["n_adversarios_frente"] = df.apply(count_blockers, axis=1)
+        df["defenders_between_ball_and_goal"] = df.apply(count_blockers, axis=1)
 
         # 4. Seleção de colunas
         # Agora usamos self.final_features DIRETAMENTE. 
